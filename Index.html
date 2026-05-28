@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FPL H2H League Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --fpl-purple: #37003c;
+  --fpl-green:  #00ff87;
+  --fpl-cyan:   #04f5ff;
+  --fpl-pink:   #ff2882;
+  --bg:         #120016;
+  --surface:    #1e0a24;
+  --surface2:   #2a1030;
+  --surface3:   #341640;
+  --border:     rgba(255,255,255,0.08);
+  --border2:    rgba(255,255,255,0.14);
+  --text:       #ffffff;
+  --muted:      #8b6b99;
+  --muted2:     #b89ec4;
+  --green:      #00ff87;
+  --green-dim:  rgba(0,255,135,0.10);
+  --green-bd:   rgba(0,255,135,0.25);
+  --cyan:       #04f5ff;
+  --pink:       #ff2882;
+  --pink-dim:   rgba(255,40,130,0.10);
+  --amber:      #ffab40;
+  --red:        #ff4d4d;
+  --red-dim:    rgba(255,77,77,0.10);
+  --mono:       'JetBrains Mono', monospace;
+  --r:          10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:14px;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:8px;}
+a{color:var(--cyan);text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.75);}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes floatIn{from{opacity:0;transform:scale(.96)translateY(8px);}to{opacity:1;transform:none;}}
+
+/* ── HERO HEADER ── */
+#hero {
+  position:relative; overflow:hidden;
+  background:linear-gradient(170deg, #37003c 0%, #200028 50%, #0f0018 100%);
+  border-bottom:1px solid rgba(0,255,135,.2);
+  padding:0;
+}
+
+/* animated pitch lines canvas — full width */
+#hero-canvas {
+  position:absolute;inset:0;pointer-events:none;z-index:0;width:100%;height:100%;
+}
+
+#hero-inner {
+  position:relative;z-index:2;
+  max-width:1040px;margin:0 auto;
+  padding:18px 24px 12px;
+}
+#top-bar {
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+
+/* brand with PL logo */
+.brand{display:flex;align-items:center;gap:14px;}
+#pl-logo{
+  width:36px;height:36px;flex-shrink:0;
+  filter:drop-shadow(0 0 8px rgba(0,255,135,.4));
+}
+.brand-wordmark{display:flex;align-items:baseline;gap:6px;}
+.brand-fpl{
+  font-size:24px;font-weight:900;letter-spacing:-1px;
+  background:linear-gradient(90deg,#ffffff 0%,#e0e0e0 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.brand-h2h{
+  font-size:12px;font-weight:800;letter-spacing:1.8px;color:var(--green);
+  text-transform:uppercase;border:1px solid var(--green-bd);border-radius:4px;padding:2px 7px;
+}
+#live-pill{
+  display:none;align-items:center;gap:6px;
+  background:var(--green-dim);border:1px solid var(--green-bd);
+  border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;color:var(--green);
+}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse-dot 1.2s ease infinite;}
+#last-updated{font-size:11px;color:var(--muted);}
+.header-right{display:flex;align-items:center;gap:10px;}
+
+
+
+.player-fig:hover{transform:translateY(-6px) scale(1.06);}
+@keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+@keyframes sway{0%,100%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}}
+@keyframes kick{0%,100%{transform:rotate(0deg);}40%{transform:rotate(-8deg);}70%{transform:rotate(6deg);}}
+
+.anim-sway{animation:sway 3.2s ease-in-out infinite;}
+.anim-kick{animation:kick 2.4s ease-in-out infinite;}
+
+.player-wrap{position:relative;display:flex;flex-direction:column;align-items:center;}
+
+
+
+/* league title banner */
+#league-banner{
+  background:linear-gradient(90deg,rgba(0,255,135,.12),rgba(4,245,255,.06),transparent);
+  border-top:1px solid rgba(0,255,135,.15);
+  border-bottom:1px solid rgba(0,255,135,.08);
+  padding:10px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  max-width:none;
+}
+#league-banner-inner{max-width:1040px;margin:0 auto;width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+#league-title{font-size:15px;font-weight:800;color:var(--text);}
+#league-meta{font-size:11px;color:var(--muted);}
+#banner-refresh{
+  background:none;border:1px solid var(--border2);color:var(--muted2);
+  border-radius:7px;padding:5px 12px;font-size:11px;font-weight:500;
+  display:flex;align-items:center;gap:5px;transition:all .15s;
+}
+#banner-refresh:hover{border-color:var(--green-bd);color:var(--green);}
+
+/* ── MAIN ── */
+main{max-width:1040px;margin:0 auto;padding:20px 16px 80px;}
+
+/* ── SETUP ── */
+#setup-wrap{
+  display:flex;align-items:center;justify-content:center;
+  min-height:60vh;animation:floatIn .5s ease;
+}
+#setup-card{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:16px;padding:40px 36px;width:100%;max-width:460px;text-align:center;
+  position:relative;overflow:hidden;
+}
+#setup-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(0,255,135,.04) 0%,transparent 60%);
+  pointer-events:none;
+}
+.setup-pitch{margin:0 auto 24px;width:72px;height:72px;position:relative;}
+.setup-pitch svg{width:72px;height:72px;}
+#setup-card h1{font-size:24px;font-weight:900;letter-spacing:-.5px;margin-bottom:8px;}
+#setup-card p{font-size:13px;color:var(--muted2);line-height:1.7;margin-bottom:24px;}
+.input-row{display:flex;gap:8px;margin-bottom:10px;}
+#league-input{
+  flex:1;background:var(--bg);border:1px solid var(--border2);
+  border-radius:8px;padding:0 14px;height:44px;
+  color:var(--text);font-size:15px;font-family:var(--mono);outline:none;
+  transition:border-color .15s;
+}
+#league-input:focus{border-color:var(--green);}
+#load-btn{
+  height:44px;padding:0 22px;
+  background:var(--green);color:var(--fpl-purple);border:none;border-radius:8px;
+  font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px;
+  transition:opacity .15s;white-space:nowrap;
+}
+#load-btn:hover{opacity:.88;}
+#load-btn:disabled{background:var(--surface2);color:var(--muted);cursor:not-allowed;opacity:1;}
+.setup-hint{font-size:11px;color:var(--muted);line-height:1.65;margin-top:6px;}
+.setup-hint code{color:var(--green);font-family:var(--mono);}
+
+/* ── ERROR ── */
+.err-box{
+  background:var(--red-dim);border:1px solid rgba(255,77,77,.3);
+  border-radius:var(--r);padding:14px 16px;margin-bottom:16px;
+  display:flex;gap:10px;align-items:flex-start;animation:fadeUp .3s ease;
+}
+.err-box svg{color:var(--red);flex-shrink:0;margin-top:1px;}
+.err-box p{font-size:13px;color:var(--muted2);line-height:1.55;}
+.err-box strong{color:var(--text);display:block;margin-bottom:3px;}
+
+/* ── LOADING ── */
+#loading-state{display:flex;flex-direction:column;align-items:center;gap:16px;padding:100px 20px;color:var(--muted2);}
+#loading-state p{font-size:13px;}
+.spinner{border:2px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;flex-shrink:0;}
+
+/* ── DASHBOARD ── */
+#dashboard{display:none;animation:fadeUp .35s ease;}
+
+/* summary strip */
+.summary-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+.s-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;
+  position:relative;overflow:hidden;
+}
+.s-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--green),var(--cyan));
+  opacity:0;transition:opacity .2s;
+}
+.s-card:hover::after{opacity:1;}
+.s-card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.s-card .lbl svg{color:var(--green);}
+.s-card .val{font-family:var(--mono);font-size:19px;font-weight:700;line-height:1.2;}
+
+/* tabs */
+.tabs{
+  display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:4px;margin-bottom:20px;
+}
+.tab{
+  flex:1;padding:8px 10px;border-radius:7px;border:1px solid transparent;
+  font-size:12px;font-weight:500;color:var(--muted);background:none;
+  transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.tab.active{
+  background:linear-gradient(135deg,rgba(0,255,135,.12),rgba(4,245,255,.06));
+  color:var(--green);font-weight:700;border-color:var(--green-bd);
+}
+.tab:hover:not(.active){color:var(--muted2);}
+.tab svg{flex-shrink:0;}
+.panel{display:none;}
+.panel.active{display:block;animation:fadeUp .25s ease;}
+
+/* section header */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.sec-hdr h2{
+  font-size:11px;font-weight:700;display:flex;align-items:center;gap:7px;
+  color:var(--muted2);text-transform:uppercase;letter-spacing:1px;
+}
+.sec-hdr h2 svg{color:var(--green);}
+.btn-sm{
+  background:none;border:1px solid var(--border2);color:var(--muted2);
+  border-radius:7px;padding:6px 12px;font-size:11px;font-weight:500;
+  display:flex;align-items:center;gap:5px;transition:all .15s;
+}
+.btn-sm:hover{border-color:var(--green-bd);color:var(--green);}
+
+/* ── STANDINGS TABLE ── */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{
+  text-align:left;font-size:10px;font-weight:700;letter-spacing:.8px;
+  text-transform:uppercase;color:var(--muted);padding:0 12px 10px;
+  border-bottom:1px solid var(--border);white-space:nowrap;
+}
+thead th.c{text-align:center;}
+tbody td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr{transition:background .12s;}
+tbody tr:hover td{background:var(--surface2);}
+
+/* position cell */
+.pos-cell{width:42px;text-align:center;}
+.pos-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:6px;font-size:11px;font-weight:800;
+  font-family:var(--mono);
+}
+.pos-1{background:rgba(255,215,0,.15);color:#ffd700;border:1px solid rgba(255,215,0,.3);}
+.pos-2{background:rgba(192,192,192,.12);color:#c0c0c0;border:1px solid rgba(192,192,192,.25);}
+.pos-3{background:rgba(205,127,50,.12);color:#cd7f32;border:1px solid rgba(205,127,50,.25);}
+.pos-other{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
+
+.mgr-name{font-weight:700;font-size:13px;}
+.mgr-team{font-size:11px;color:var(--muted);margin-top:2px;}
+.streak-badge{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:9px;font-weight:700;padding:2px 6px;border-radius:20px;margin-top:3px;
+  letter-spacing:.3px;text-transform:uppercase;
+}
+.streak-badge svg{flex-shrink:0;}
+.streak-W{background:var(--green-dim);color:var(--green);border:1px solid var(--green-bd);}
+.streak-L{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,77,77,.25);}
+.streak-D{background:rgba(255,171,64,.1);color:var(--amber);border:1px solid rgba(255,171,64,.25);}
+
+.num-cell{text-align:center;font-family:var(--mono);font-weight:600;color:var(--muted2);}
+.pts-cell{text-align:center;font-family:var(--mono);font-weight:800;font-size:15px;color:var(--green);}
+.gd-pos{color:var(--green);} .gd-neg{color:var(--red);} .gd-zero{color:var(--muted);}
+
+.form-pills{display:flex;gap:3px;justify-content:center;}
+.fp{
+  width:22px;height:22px;border-radius:5px;font-size:9px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+}
+.fp.W{background:rgba(0,255,135,.18);color:var(--green);}
+.fp.D{background:rgba(255,171,64,.15);color:var(--amber);}
+.fp.L{background:var(--red-dim);color:var(--red);}
+.fp.N{background:var(--surface2);color:var(--muted);}
+
+/* ── MATCH CARDS ── */
+.matches-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px;}
+.match-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px;
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;
+  transition:border-color .15s;
+}
+.match-card:hover{border-color:var(--border2);}
+.match-card.is-live{border-color:var(--green-bd);background:linear-gradient(135deg,rgba(0,255,135,.04),var(--surface));}
+.mc-side{display:flex;flex-direction:column;gap:2px;}
+.mc-side.right{text-align:right;align-items:flex-end;}
+.mc-name{font-size:13px;font-weight:700;}
+.mc-name.winner{color:var(--green);}
+.mc-team{font-size:11px;color:var(--muted);}
+.mc-gw-pts{font-size:11px;color:var(--muted2);font-family:var(--mono);margin-top:1px;}
+.mc-score{display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 4px;}
+.mc-nums{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-weight:900;font-size:22px;}
+.mc-sep{color:var(--muted);font-size:14px;font-weight:400;}
+.mc-label{
+  font-size:9px;letter-spacing:.8px;font-weight:700;padding:1px 6px;border-radius:3px;
+}
+.lbl-ft{background:var(--surface2);color:var(--muted);}
+.lbl-live{background:var(--green-dim);color:var(--green);}
+.lbl-tbd{background:var(--surface2);color:var(--muted);}
+.sc-win{color:var(--green);} .sc-lose{color:var(--red);} .sc-draw{color:var(--amber);} .sc-tbd{color:var(--muted);}
+
+/* ── GW BAR ── */
+.gw-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.gw-bar label{font-size:12px;color:var(--muted);}
+.gw-select{
+  background:var(--surface2);border:1px solid var(--border2);border-radius:7px;
+  color:var(--text);font-size:12px;padding:6px 10px;outline:none;
+  font-family:inherit;cursor:pointer;transition:border-color .15s;
+}
+.gw-select:focus{border-color:var(--green);}
+.gw-pts-note{font-size:11px;color:var(--muted);margin-left:auto;}
+
+/* ── H2H CARDS ── */
+.h2h-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;}
+.h2h-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px;transition:border-color .15s;
+}
+.h2h-card:hover{border-color:var(--border2);}
+.h2h-names{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;}
+.h2h-name{font-size:12px;font-weight:700;flex:1;line-height:1.3;}
+.h2h-name.right{text-align:right;}
+.h2h-vs-badge{
+  font-size:9px;color:var(--muted);font-weight:800;letter-spacing:1px;
+  background:var(--surface2);border-radius:4px;padding:2px 6px;flex-shrink:0;
+}
+.h2h-record{display:flex;gap:5px;}
+.h2h-box{flex:1;text-align:center;background:var(--surface2);border-radius:7px;padding:8px 4px;}
+.h2h-box .hb-num{font-family:var(--mono);font-size:18px;font-weight:800;}
+.h2h-box .hb-lbl{font-size:9px;color:var(--muted);letter-spacing:.5px;margin-top:2px;}
+.h2h-box.win{background:var(--green-dim);border:1px solid var(--green-bd);}
+.h2h-box.win .hb-num{color:var(--green);}
+.h2h-box.lose .hb-num{color:var(--red);}
+.h2h-box.draw .hb-num{color:var(--amber);}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px;
+}
+.stat-card .sc-lbl{
+  font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;
+  margin-bottom:10px;display:flex;align-items:center;gap:6px;
+}
+.stat-card .sc-lbl svg{color:var(--green);}
+.stat-entry{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 0;border-bottom:1px solid var(--border);gap:8px;
+}
+.stat-entry:last-child{border-bottom:none;}
+.se-left{display:flex;align-items:center;gap:7px;}
+.rank-dot{
+  width:18px;height:18px;border-radius:4px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;
+}
+.rank-1{background:rgba(255,215,0,.15);color:#ffd700;}
+.rank-2{background:rgba(192,192,192,.12);color:#c0c0c0;}
+.rank-3{background:rgba(205,127,50,.12);color:#cd7f32;}
+.rank-n{background:var(--surface2);color:var(--muted);}
+.se-name{font-size:12px;font-weight:600;}
+.se-val{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green);flex-shrink:0;}
+
+/* ── RECORD CARD ── */
+.record-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);}
+.record-row:last-child{border-bottom:none;}
+.rr-left{display:flex;align-items:center;gap:8px;}
+.rr-icon{
+  width:28px;height:28px;border-radius:7px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.rr-icon.flame{background:rgba(255,100,50,.12);}
+.rr-icon.snow{background:rgba(100,200,255,.12);}
+.rr-icon.count{background:var(--surface2);}
+.rr-icon svg{flex-shrink:0;}
+.rr-label{font-size:12px;font-weight:600;}
+.rr-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+.rr-val{font-family:var(--mono);font-size:14px;font-weight:800;color:var(--green);}
+
+@media(max-width:700px){
+  .summary-strip{grid-template-columns:repeat(2,1fr);}
+  .tab span{display:none;}
+
+}
+</style>
+</head>
+<body>
+
+<!-- HERO HEADER -->
+<div id="hero">
+  <canvas id="hero-canvas"></canvas>
+  <div id="hero-inner">
+    <div id="top-bar">
+      <div class="brand">
+        <!-- Premier League Lion Logo -->
+        <svg id="pl-logo" viewBox="0 0 200 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Shield base -->
+          <path d="M100 8 L185 45 L185 130 Q185 185 100 212 Q15 185 15 130 L15 45 Z" fill="#37003c" stroke="#00ff87" stroke-width="3"/>
+          <!-- Inner shield -->
+          <path d="M100 20 L172 52 L172 128 Q172 175 100 198 Q28 175 28 128 L28 52 Z" fill="none" stroke="rgba(0,255,135,0.25)" stroke-width="1.5"/>
+          <!-- Crown top -->
+          <path d="M70 20 L80 8 L100 16 L120 8 L130 20 L118 26 L100 20 L82 26 Z" fill="#00ff87" opacity=".9"/>
+          <!-- Lion body (simplified) -->
+          <ellipse cx="100" cy="110" rx="38" ry="46" fill="rgba(0,255,135,0.15)" stroke="#00ff87" stroke-width="1.5" opacity=".7"/>
+          <!-- Lion head -->
+          <circle cx="100" cy="72" r="22" fill="rgba(0,255,135,0.12)" stroke="#00ff87" stroke-width="1.5" opacity=".8"/>
+          <!-- Mane lines -->
+          <path d="M80 62 Q72 58 70 50 M88 58 Q84 50 82 42 M100 56 Q100 48 100 40 M112 58 Q116 50 118 42 M120 62 Q128 58 130 50" stroke="#00ff87" stroke-width="1.2" stroke-linecap="round" opacity=".6"/>
+          <!-- Face detail -->
+          <circle cx="93" cy="70" r="3" fill="#00ff87" opacity=".7"/>
+          <circle cx="107" cy="70" r="3" fill="#00ff87" opacity=".7"/>
+          <path d="M94 79 Q100 83 106 79" stroke="#00ff87" stroke-width="1.5" stroke-linecap="round" opacity=".6"/>
+          <!-- Paws -->
+          <path d="M68 138 Q58 145 55 155 Q65 158 75 152 Z" fill="rgba(0,255,135,0.2)" stroke="#00ff87" stroke-width="1.2" opacity=".7"/>
+          <path d="M132 138 Q142 145 145 155 Q135 158 125 152 Z" fill="rgba(0,255,135,0.2)" stroke="#00ff87" stroke-width="1.2" opacity=".7"/>
+          <!-- Tail -->
+          <path d="M138 120 Q158 100 155 80 Q152 68 145 72" stroke="#00ff87" stroke-width="2" stroke-linecap="round" fill="none" opacity=".6"/>
+          <!-- PL text at bottom -->
+          <text x="100" y="198" text-anchor="middle" font-family="Inter,sans-serif" font-size="14" font-weight="900" fill="#00ff87" opacity=".9" letter-spacing="2">PREMIER</text>
+          <text x="100" y="210" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="rgba(0,255,135,0.6)" letter-spacing="3">LEAGUE</text>
+        </svg>
+        <div class="brand-wordmark">
+          <span class="brand-fpl">FPL</span>
+          <span class="brand-h2h">H2H</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="live-pill"><div class="live-dot"></div>LIVE</div>
+        <span id="last-updated"></span>
+      </div>
+    </div>
+
+    <!-- Player silhouettes — clean stick-figure style matching FPL app -->
+
+  </div>
+
+
+</div>
+
+<!-- LEAGUE BANNER -->
+<div id="league-banner" style="display:none">
+  <div id="league-banner-inner">
+    <div>
+      <div id="league-title">Loading…</div>
+      <div id="league-meta"></div>
+    </div>
+    <button id="banner-refresh" onclick="refreshData()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+      Refresh
+    </button>
+  </div>
+</div>
+
+<main>
+  <div id="error-area"></div>
+
+  <!-- SETUP -->
+  <div id="setup-wrap">
+    <div id="setup-card">
+      <div class="setup-pitch">
+        <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="8" width="64" height="56" rx="3" stroke="#00ff87" stroke-width="2" fill="rgba(0,255,135,0.05)"/>
+          <line x1="36" y1="8" x2="36" y2="64" stroke="#00ff87" stroke-width="1.5" opacity=".4"/>
+          <circle cx="36" cy="36" r="10" stroke="#00ff87" stroke-width="1.5" opacity=".4"/>
+          <rect x="4" y="24" width="12" height="24" rx="1" stroke="#00ff87" stroke-width="1.5" opacity=".5"/>
+          <rect x="56" y="24" width="12" height="24" rx="1" stroke="#00ff87" stroke-width="1.5" opacity=".5"/>
+          <circle cx="36" cy="36" r="2" fill="#00ff87" opacity=".8"/>
+        </svg>
+      </div>
+      <h1>H2H League Dashboard</h1>
+      <p>Live standings, match results, head-to-head records and season stats for your Fantasy Premier League.</p>
+      <div class="input-row">
+        <input id="league-input" type="number" placeholder="Enter League ID…" autocomplete="off"/>
+        <button id="load-btn" onclick="handleLoad()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Load
+        </button>
+      </div>
+      <p class="setup-hint">Find your League ID in the FPL URL:<br><code>fantasy.premierleague.com/leagues/<strong>123456</strong>/standings/h</code></p>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loading-state" style="display:none">
+    <span class="spinner" style="width:28px;height:28px"></span>
+    <p id="loading-msg">Fetching league data…</p>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+    <div class="summary-strip" id="summary-strip"></div>
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('standings')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        <span>Standings</span>
+      </button>
+      <button class="tab" onclick="showTab('results')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Results</span>
+      </button>
+      <button class="tab" onclick="showTab('h2h')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 23-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        <span>H2H Records</span>
+      </button>
+      <button class="tab" onclick="showTab('stats')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Stats</span>
+      </button>
+    </div>
+    <div id="panel-standings" class="panel active"></div>
+    <div id="panel-results"   class="panel"></div>
+    <div id="panel-h2h"       class="panel"></div>
+    <div id="panel-stats"     class="panel"></div>
+  </div>
+</main>
+
+<script>
+// ── Config ─────────────────────────────────────
+const DEFAULT_LEAGUE_ID = "79703";
+const FPL = "https://fantasy.premierleague.com/api";
+const PROXIES = [
+  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u=>`https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+  u=>`https://thingproxy.freeboard.io/fetch/${u}`,
+];
+
+// ── State ──────────────────────────────────────
+let S={leagueId:"",leagueName:"",standings:[],allMatches:[],gwList:[],selectedGW:null,currentGWId:null,isLive:false,refreshTimer:null,lastLoaded:0};
+
+// ── Hero canvas: animated pitch lines + floating particles ──
+(function(){
+  const c = document.getElementById("hero-canvas");
+  if (!c) return;
+  const ctx = c.getContext("2d");
+  let W, H, particles = [], t = 0;
+
+  function resize() {
+    W = c.width = c.offsetWidth || window.innerWidth;
+    H = c.height = c.offsetHeight || 200;
+  }
+
+  function initParticles() {
+    particles = [];
+    for (let i = 0; i < 55; i++) {
+      particles.push({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .35,
+        r: Math.random() * 1.8 + .4, a: Math.random() * .35 + .05
+      });
+    }
+  }
+
+  function drawPitch() {
+    // Horizontal pitch lines — full width, subtle, animated opacity
+    const lineCount = 6;
+    for (let i = 0; i < lineCount; i++) {
+      const y = (H / (lineCount + 1)) * (i + 1);
+      const alpha = 0.04 + 0.03 * Math.sin(t * .015 + i);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.strokeStyle = `rgba(0,255,135,${alpha})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Vertical halfway line — full height
+    ctx.beginPath();
+    ctx.moveTo(W / 2, 0);
+    ctx.lineTo(W / 2, H);
+    ctx.strokeStyle = `rgba(0,255,135,${0.05 + 0.02 * Math.sin(t * .012)})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Centre circle
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, Math.min(H * .38, 80), 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0,255,135,${0.05 + 0.02 * Math.sin(t * .010)})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Left penalty box
+    const bw = W * .14, bh = H * .55, by = (H - bh) / 2;
+    ctx.strokeStyle = `rgba(0,255,135,${0.06 + 0.02 * Math.sin(t * .008)})`;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, by, bw, bh);
+
+    // Right penalty box
+    ctx.strokeRect(W - bw, by, bw, bh);
+
+    // Animated scanning line — sweeps left to right
+    const scanX = ((t * 1.2) % (W + 80)) - 40;
+    const scanGrad = ctx.createLinearGradient(scanX - 30, 0, scanX + 30, 0);
+    scanGrad.addColorStop(0, "transparent");
+    scanGrad.addColorStop(.5, "rgba(0,255,135,0.18)");
+    scanGrad.addColorStop(1, "transparent");
+    ctx.fillStyle = scanGrad;
+    ctx.fillRect(scanX - 30, 0, 60, H);
+  }
+
+  function draw() {
+    t++;
+    ctx.clearRect(0, 0, W, H);
+
+    // Subtle radial vignette
+    const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W*.6);
+    grad.addColorStop(0, "rgba(55,0,60,0)");
+    grad.addColorStop(1, "rgba(10,0,20,0.5)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    drawPitch();
+
+    // Floating particles
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1;
+      if (p.y < 0 || p.y > H) p.vy *= -1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,255,135,${p.a})`;
+      ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener("resize", () => { resize(); initParticles(); });
+  resize(); initParticles(); draw();
+})();
+
+
+
+// ── SVG icon helper ────────────────────────────
+function ic(path,size=14){return`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;}
+
+// ── Fetch ──────────────────────────────────────
+async function apiFetch(path){
+  const url=`${FPL}${path}`;
+  for(const proxy of PROXIES){
+    try{
+      const res=await fetch(proxy(url),{signal:AbortSignal.timeout(9000)});
+      if(!res.ok) continue;
+      const j=await res.json();
+      if(j) return j;
+    }catch(e){continue;}
+  }
+  throw new Error("All proxies failed. Please try again in a moment.");
+}
+
+// ── Load ───────────────────────────────────────
+function handleLoad(){
+  const val=document.getElementById("league-input").value.trim();
+  if(!val||isNaN(val)){showErr("Please enter a valid numeric League ID.");return;}
+  clearErr();loadLeague(val);
+}
+document.getElementById("league-input").addEventListener("keydown",e=>{if(e.key==="Enter")handleLoad();});
+window.addEventListener("load",()=>{
+  const params=new URLSearchParams(window.location.search);
+  const lid=params.get("league")||DEFAULT_LEAGUE_ID;
+  document.getElementById("league-input").value=lid;
+  loadLeague(lid);
+});
+
+async function loadLeague(leagueId){
+  setLoading(true,"Connecting to FPL API…");
+  document.getElementById("setup-wrap").style.display="none";
+  clearErr();
+  try{
+    setLoading(true,"Fetching current gameweek…");
+    try{
+      const boot=await apiFetch("/bootstrap-static/");
+      const cur=boot.events.find(e=>e.is_current)||boot.events.find(e=>e.is_next);
+      S.currentGWId=cur?.id||null;
+    }catch(e){}
+
+    setLoading(true,"Fetching standings…");
+    const sd=await apiFetch(`/leagues-h2h/${leagueId}/standings/`);
+    if(!sd.standings) throw new Error("Not a valid H2H league ID. Check the ID and try again.");
+    S.leagueName=sd.league.name;
+    S.standings=sd.standings.results;
+    S.leagueId=leagueId;
+
+    let all=[],page=1,hasNext=true;
+    while(hasNext&&page<=50){
+      setLoading(true,`Fetching match history… (page ${page})`);
+      const md=await apiFetch(`/leagues-h2h-matches/league/${leagueId}/?page=${page}`);
+      const results=md.results||[];
+      all=all.concat(results);
+      hasNext=!!md.has_next&&results.length>0;
+      page++;
+    }
+    S.allMatches=all;
+    S.gwList=[...new Set(all.map(m=>m.event))].sort((a,b)=>a-b);
+    S.selectedGW=S.currentGWId&&S.gwList.includes(S.currentGWId)?S.currentGWId:S.gwList[S.gwList.length-1];
+    S.lastLoaded=Date.now();
+    S.isLive=S.currentGWId&&all.filter(m=>m.event===S.currentGWId).some(m=>m.entry_1_points===null||m.entry_2_points===null);
+
+    setLoading(false);
+    renderDashboard();
+
+    clearInterval(S.refreshTimer);
+    S.refreshTimer=setInterval(()=>refreshData(),60000);
+
+    const url=new URL(window.location.href);
+    url.searchParams.set("league",leagueId);
+    window.history.replaceState({},"",url);
+
+  }catch(err){
+    setLoading(false);
+    document.getElementById("setup-wrap").style.display="flex";
+    showErr(err.message);
+  }
+}
+
+async function refreshData(){
+  try{
+    const sd=await apiFetch(`/leagues-h2h/${S.leagueId}/standings/`);
+    S.standings=sd.standings.results;
+    let all=[],page=1,hasNext=true;
+    while(hasNext&&page<=50){
+      const md=await apiFetch(`/leagues-h2h-matches/league/${S.leagueId}/?page=${page}`);
+      const results=md.results||[];
+      all=all.concat(results);
+      hasNext=!!md.has_next&&results.length>0;
+      page++;
+    }
+    S.allMatches=all;
+    S.lastLoaded=Date.now();
+    S.isLive=S.currentGWId&&all.filter(m=>m.event===S.currentGWId).some(m=>m.entry_1_points===null||m.entry_2_points===null);
+    renderDashboard();
+  }catch(e){}
+}
+
+// ── UI helpers ─────────────────────────────────
+function setLoading(on,msg){
+  document.getElementById("loading-state").style.display=on?"flex":"none";
+  document.getElementById("dashboard").style.display=on?"none":"block";
+  if(msg) document.getElementById("loading-msg").textContent=msg;
+  const btn=document.getElementById("load-btn");
+  btn.disabled=on;
+  btn.innerHTML=on?`<span class="spinner" style="width:13px;height:13px"></span>`:`${ic('<polygon points="5 3 19 12 5 21 5 3"/>',14)} Load`;
+}
+function showErr(msg){
+  document.getElementById("error-area").innerHTML=`<div class="err-box">${ic('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',16)}<p><strong>Error</strong>${msg}</p></div>`;
+}
+function clearErr(){document.getElementById("error-area").innerHTML="";}
+function showTab(id){
+  document.querySelectorAll(".tab").forEach((t,i)=>t.classList.toggle("active",["standings","results","h2h","stats"][i]===id));
+  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+  document.getElementById(`panel-${id}`).classList.add("active");
+}
+
+// ── Form / streak ──────────────────────────────
+function getForm(entryId,upToGW,count=5){
+  return S.allMatches
+    .filter(m=>m.event<=upToGW&&(m.entry_1_entry===entryId||m.entry_2_entry===entryId))
+    .sort((a,b)=>b.event-a.event).slice(0,count).reverse()
+    .map(m=>{
+      const mine=m.entry_1_entry===entryId?m.entry_1_points:m.entry_2_points;
+      const opp=m.entry_1_entry===entryId?m.entry_2_points:m.entry_1_points;
+      if(mine===null||opp===null) return{r:"N",gw:m.event};
+      return{r:mine>opp?"W":mine<opp?"L":"D",gw:m.event};
+    });
+}
+function getStreak(entryId){
+  const form=getForm(entryId,S.gwList[S.gwList.length-1],20);
+  const results=form.filter(f=>f.r!=="N").reverse();
+  if(!results.length) return null;
+  const latest=results[0].r;
+  let count=0;
+  for(const f of results){if(f.r===latest)count++;else break;}
+  return count>1?{r:latest,n:count}:null;
+}
+
+// ── Render dashboard ───────────────────────────
+function renderDashboard(){
+  document.getElementById("live-pill").style.display=S.isLive?"flex":"none";
+  const ago=Math.round((Date.now()-S.lastLoaded)/1000);
+  document.getElementById("last-updated").textContent=ago<5?"Just updated":`Updated ${ago}s ago`;
+  document.getElementById("league-banner").style.display="block";
+  document.getElementById("league-title").textContent=S.leagueName;
+  document.getElementById("league-meta").textContent=`${S.standings.length} managers · GW${S.selectedGW||"—"}`;
+  renderSummary();renderStandings();renderResults();renderH2H();renderStats();
+}
+
+// ── Summary ────────────────────────────────────
+function renderSummary(){
+  const gw=S.currentGWId?`GW ${S.currentGWId}`:S.gwList.length?`GW ${S.gwList[S.gwList.length-1]}`:"—";
+  const leader=S.standings[0];
+  const completed=S.allMatches.filter(m=>m.entry_1_points!==null).length;
+  document.getElementById("summary-strip").innerHTML=[
+    {lbl:"League",val:S.leagueName,col:"var(--text)",ic:`<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>`},
+    {lbl:"Leader",val:leader?.entry_name||"—",col:"#ffd700",ic:`<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`},
+    {lbl:"Managers",val:S.standings.length,col:"var(--cyan)",ic:`<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`},
+    {lbl:"Gameweek",val:gw,col:"var(--green)",ic:`<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>`},
+  ].map(c=>`<div class="s-card"><div class="lbl">${ic(c.ic,12)}${c.lbl}</div><div class="val" style="color:${c.col};font-size:${c.val.toString().length>14?'13px':'19px'}">${c.val}</div></div>`).join("");
+}
+
+// ── Standings ──────────────────────────────────
+function renderStandings(){
+  const gwForForm=S.gwList[S.gwList.length-1];
+  const rows=S.standings.map((e,i)=>{
+    const pos=i+1;
+    const pCls=pos===1?"pos-1":pos===2?"pos-2":pos===3?"pos-3":"pos-other";
+    const form=getForm(e.entry,gwForForm);
+    const streak=getStreak(e.entry);
+    const gd=(e.points_for||0)-(e.points_against||0);
+    const gdCls=gd>0?"gd-pos":gd<0?"gd-neg":"gd-zero";
+    const formHtml=form.map(f=>`<div class="fp ${f.r}" title="GW${f.gw}">${f.r==="N"?"?":f.r}</div>`).join("");
+    let streakHtml="";
+    if(streak){
+      const sIcon=streak.r==="W"
+        ?ic('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',10)
+        :streak.r==="L"
+        ?ic('<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',10)
+        :ic('<minus cx="12" cy="12" r="10"/>',10);
+      const label=streak.r==="W"?`${streak.n} win streak`:streak.r==="L"?`${streak.n} loss streak`:`${streak.n} draw streak`;
+      streakHtml=`<div class="streak-badge streak-${streak.r}">${sIcon}${label}</div>`;
+    }
+    return`<tr>
+      <td class="pos-cell"><div class="pos-badge ${pCls}">${pos}</div></td>
+      <td><div class="mgr-name">${e.entry_name}</div><div class="mgr-team">${e.player_name}</div>${streakHtml}</td>
+      <td class="num-cell" style="color:var(--green)">${e.matches_won||0}</td>
+      <td class="num-cell" style="color:var(--amber)">${e.matches_drawn||0}</td>
+      <td class="num-cell" style="color:var(--red)">${e.matches_lost||0}</td>
+      <td class="num-cell ${gdCls}">${gd>0?"+":""}${gd}</td>
+      <td class="pts-cell">${e.total||0}</td>
+      <td><div class="form-pills">${formHtml}</div></td>
+    </tr>`;
+  }).join("");
+  document.getElementById("panel-standings").innerHTML=`
+    <div class="sec-hdr">
+      <h2>${ic('<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>')}Standings</h2>
+      <button class="btn-sm" onclick="refreshData()">${ic('<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>')}Refresh</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th class="c">#</th><th>Manager</th><th class="c">W</th><th class="c">D</th><th class="c">L</th><th class="c">GD</th><th class="c">Pts</th><th>Form</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ── Results ────────────────────────────────────
+function renderResults(gwOverride){
+  const gw=gwOverride||S.selectedGW;
+  const gwOpts=S.gwList.map(g=>`<option value="${g}" ${g===gw?"selected":""}>${g===S.currentGWId?"GW "+g+" (Current)":"GW "+g}</option>`).join("");
+  const matches=S.allMatches.filter(m=>m.event===gw);
+  const cards=matches.map(m=>{
+    const p1=m.entry_1_points,p2=m.entry_2_points;
+    const live=p1===null||p2===null;
+    const p1w=!live&&p1>p2,p2w=!live&&p2>p1;
+    const s1=live?"sc-tbd":p1w?"sc-win":p2w?"sc-lose":"sc-draw";
+    const s2=live?"sc-tbd":p2w?"sc-win":p1w?"sc-lose":"sc-draw";
+    const lbl=live?(S.isLive?"lbl-live":"lbl-tbd"):"lbl-ft";
+    const lblText=live?(S.isLive?"LIVE":"TBD"):"FT";
+    return`<div class="match-card ${live&&S.isLive?"is-live":""}">
+      <div class="mc-side">
+        <div class="mc-name ${p1w?"winner":""}">${m.entry_1_name}</div>
+        <div class="mc-team">${m.entry_1_player_name}</div>
+        ${m.entry_1_total?`<div class="mc-gw-pts">${m.entry_1_total} pts total</div>`:""}
+      </div>
+      <div class="mc-score">
+        <div class="mc-nums">
+          <span class="${s1}">${live?"—":p1}</span>
+          <span class="mc-sep">–</span>
+          <span class="${s2}">${live?"—":p2}</span>
+        </div>
+        <div class="mc-label ${lbl}">${lblText}</div>
+      </div>
+      <div class="mc-side right">
+        <div class="mc-name ${p2w?"winner":""}">${m.entry_2_name}</div>
+        <div class="mc-team">${m.entry_2_player_name}</div>
+        ${m.entry_2_total?`<div class="mc-gw-pts">${m.entry_2_total} pts total</div>`:""}
+      </div>
+    </div>`;
+  }).join("")||`<p style="color:var(--muted);font-size:13px;text-align:center;padding:40px">No matches found for this gameweek.</p>`;
+  document.getElementById("panel-results").innerHTML=`
+    <div class="sec-hdr">
+      <h2>${ic('<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')}Match Results</h2>
+    </div>
+    <div class="gw-bar">
+      <label>Gameweek:</label>
+      <select class="gw-select" onchange="S.selectedGW=parseInt(this.value);renderResults(parseInt(this.value))">${gwOpts}</select>
+      <span class="gw-pts-note">${matches.length} match${matches.length!==1?"es":""}</span>
+    </div>
+    <div class="matches-grid">${cards}</div>`;
+}
+
+// ── H2H Records ────────────────────────────────
+function renderH2H(){
+  const entries=S.standings;
+  const pairs=[];
+  for(let i=0;i<entries.length;i++){
+    for(let j=i+1;j<entries.length;j++){
+      const a=entries[i],b=entries[j];
+      const games=S.allMatches.filter(m=>m.entry_1_points!==null&&((m.entry_1_entry===a.entry&&m.entry_2_entry===b.entry)||(m.entry_1_entry===b.entry&&m.entry_2_entry===a.entry)));
+      if(!games.length) continue;
+      let aw=0,bw=0,d=0;
+      games.forEach(m=>{
+        const aIsE1=m.entry_1_entry===a.entry;
+        const ap=aIsE1?m.entry_1_points:m.entry_2_points;
+        const bp=aIsE1?m.entry_2_points:m.entry_1_points;
+        if(ap>bp)aw++;else if(bp>ap)bw++;else d++;
+      });
+      pairs.push({a,b,aw,bw,d});
+    }
+  }
+  const cards=pairs.map(p=>`
+    <div class="h2h-card">
+      <div class="h2h-names">
+        <div class="h2h-name">${p.a.entry_name}</div>
+        <div class="h2h-vs-badge">VS</div>
+        <div class="h2h-name right">${p.b.entry_name}</div>
+      </div>
+      <div class="h2h-record">
+        <div class="h2h-box ${p.aw>p.bw?"win":p.aw<p.bw?"lose":""}">
+          <div class="hb-num">${p.aw}</div><div class="hb-lbl">WINS</div>
+        </div>
+        <div class="h2h-box draw">
+          <div class="hb-num" style="color:var(--amber)">${p.d}</div><div class="hb-lbl">DRAWS</div>
+        </div>
+        <div class="h2h-box ${p.bw>p.aw?"win":p.bw<p.aw?"lose":""}">
+          <div class="hb-num">${p.bw}</div><div class="hb-lbl">WINS</div>
+        </div>
+      </div>
+    </div>`).join("")||`<p style="color:var(--muted);font-size:13px;text-align:center;padding:40px">Not enough match data yet.</p>`;
+  document.getElementById("panel-h2h").innerHTML=`
+    <div class="sec-hdr">
+      <h2>${ic('<path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 23-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>')}Head-to-Head Records</h2>
+    </div>
+    <div class="h2h-grid">${cards}</div>`;
+}
+
+// ── Stats ──────────────────────────────────────
+function renderStats(){
+  const completed=S.allMatches.filter(m=>m.entry_1_points!==null&&m.entry_2_points!==null);
+  const wins={},losses={},pts={},highScore={},gwPts={};
+  S.standings.forEach(e=>{wins[e.entry]=0;losses[e.entry]=0;pts[e.entry]=0;highScore[e.entry]=0;});
+  completed.forEach(m=>{
+    const e1=m.entry_1_entry,e2=m.entry_2_entry,p1=m.entry_1_points,p2=m.entry_2_points;
+    pts[e1]=(pts[e1]||0)+p1;pts[e2]=(pts[e2]||0)+p2;
+    highScore[e1]=Math.max(highScore[e1]||0,p1);highScore[e2]=Math.max(highScore[e2]||0,p2);
+    if(p1>p2){wins[e1]=(wins[e1]||0)+1;losses[e2]=(losses[e2]||0)+1;}
+    else if(p2>p1){wins[e2]=(wins[e2]||0)+1;losses[e1]=(losses[e1]||0)+1;}
+    if(!gwPts[m.event])gwPts[m.event]={};
+    gwPts[m.event][e1]=(gwPts[m.event][e1]||0)+p1;
+    gwPts[m.event][e2]=(gwPts[m.event][e2]||0)+p2;
+  });
+  const entryName=id=>(S.standings.find(e=>e.entry===id)||{}).entry_name||"Unknown";
+  const topWins=Object.entries(wins).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topHighScore=Object.entries(highScore).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topPts=Object.entries(pts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topLosses=Object.entries(losses).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  let bestGW={pts:0,name:"",gw:0},worstGW={pts:9999,name:"",gw:0};
+  Object.entries(gwPts).forEach(([gw,scores])=>{
+    Object.entries(scores).forEach(([eid,p])=>{
+      if(p>bestGW.pts)bestGW={pts:p,name:entryName(parseInt(eid)),gw};
+      if(p<worstGW.pts)worstGW={pts:p,name:entryName(parseInt(eid)),gw};
+    });
+  });
+
+  const rankCls=i=>i===0?"rank-1":i===1?"rank-2":i===2?"rank-3":"rank-n";
+  const rankNum=i=>i+1;
+
+  const statBlock=(label,iconPath,entries,unit="")=>`
+    <div class="stat-card">
+      <div class="sc-lbl">${ic(iconPath,12)}${label}</div>
+      ${entries.map(([id,val],i)=>`
+        <div class="stat-entry">
+          <div class="se-left">
+            <div class="rank-dot ${rankCls(i)}">${rankNum(i)}</div>
+            <div class="se-name">${entryName(parseInt(id))}</div>
+          </div>
+          <div class="se-val">${val}${unit}</div>
+        </div>`).join("")}
+    </div>`;
+
+  document.getElementById("panel-stats").innerHTML=`
+    <div class="sec-hdr">
+      <h2>${ic('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>')}Season Statistics</h2>
+    </div>
+    <div class="stats-grid">
+      ${statBlock("Most Wins",'<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',topWins)}
+      ${statBlock("Highest Score",'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',topHighScore," pts")}
+      ${statBlock("Most Points Scored",'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',topPts," pts")}
+      ${statBlock("Most Losses",'<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',topLosses)}
+      <div class="stat-card">
+        <div class="sc-lbl">${ic('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',12)}Record Scores</div>
+        <div class="record-row">
+          <div class="rr-left">
+            <div class="rr-icon flame">${ic('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/>',13)}</div>
+            <div><div class="rr-label">Best score</div><div class="rr-sub">${bestGW.name}</div></div>
+          </div>
+          <div class="rr-val">${bestGW.pts} pts</div>
+        </div>
+        <div class="record-row">
+          <div class="rr-left">
+            <div class="rr-icon snow">${ic('<line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/>',13)}</div>
+            <div><div class="rr-label">Lowest score</div><div class="rr-sub">${worstGW.pts<9999?worstGW.name:"—"}</div></div>
+          </div>
+          <div class="rr-val" style="color:var(--red)">${worstGW.pts<9999?worstGW.pts+" pts":"—"}</div>
+        </div>
+        <div class="record-row">
+          <div class="rr-left">
+            <div class="rr-icon count">${ic('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',13)}</div>
+            <div><div class="rr-label">Matches played</div><div class="rr-sub">Season total</div></div>
+          </div>
+          <div class="rr-val" style="color:var(--cyan)">${completed.length}</div>
+        </div>
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>
